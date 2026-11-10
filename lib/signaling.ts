@@ -35,27 +35,31 @@ export type SignalingEventType =
 
 export type SignalingListener = (event: SignalingEventType, data?: unknown) => void;
 
-const DEFAULT_URL = "ws://localhost:8080";
-const RECONNECT_DELAY = 1000;
-const MAX_RECONNECT_ATTEMPTS = 5;
+import { DEFAULT_SIGNALING_URL as CONFIG_SIGNALING_URL, RECONNECT_DELAY_MS, MAX_RECONNECT_ATTEMPTS } from "./constants";
+
+const DEFAULT_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || CONFIG_SIGNALING_URL;
+const RECONNECT_DELAY = RECONNECT_DELAY_MS;
+const MAX_RECONNECT_ATTEMPTS_LOCAL = MAX_RECONNECT_ATTEMPTS;
+
+export const DEFAULT_SIGNALING_URL = DEFAULT_URL;
 
 export class SignalingClient {
   private ws: WebSocket | null = null;
   private url: string;
   private listeners: Set<SignalingListener> = new Set();
   private reconnectAttempts = 0;
-  private reconnectTimeout: number | null = null;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private isClosing = false;
 
   constructor(url?: string) {
-    this.url = url ?? (typeof window !== "undefined" ? this.getUrlFromEnv() : DEFAULT_URL);
+    this.url = url ?? DEFAULT_URL;
   }
 
   private getUrlFromEnv(): string {
     if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SIGNALING_URL) {
       return process.env.NEXT_PUBLIC_SIGNALING_URL;
     }
-    return DEFAULT_URL;
+    return this.url;
   }
 
   connect(): void {
@@ -64,10 +68,15 @@ export class SignalingClient {
     }
 
     try {
-      this.ws = new WebSocket(this.url);
+      // Use wss:// for production, ws:// for localhost
+      const wsUrl = this.url.startsWith('localhost') || this.url.startsWith('127.')
+        ? this.url.replace('ws://', 'ws://')
+        : this.url.replace('ws://', 'wss://').replace('wss://wss://', 'wss://');
+
+      this.ws = new WebSocket(wsUrl);
       this.setupEventHandlers();
-    } catch (error) {
-      this.emit("error", error);
+    } catch (error: any) {
+      this.emit("error", error.message || "WebSocket creation failed");
     }
   }
 
@@ -126,10 +135,10 @@ export class SignalingClient {
   private handleDisconnect(): void {
     if (this.isClosing) return;
 
-    if (this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    if (this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS_LOCAL) {
       this.reconnectAttempts++;
       this.emit("reconnect");
-      this.reconnectTimeout = window.setTimeout(() => {
+      this.reconnectTimeout = setTimeout(() => {
         this.connect();
       }, RECONNECT_DELAY * this.reconnectAttempts);
     } else {
