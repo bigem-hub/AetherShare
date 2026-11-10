@@ -15,6 +15,7 @@ export type TransferStatusType =
   | "queued"
   | "preparing"
   | "transferring"
+  | "paused"
   | "completed"
   | "failed"
   | "cancelled";

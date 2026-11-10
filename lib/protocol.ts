@@ -123,7 +123,10 @@ export type ServerMessage =
   | JoinRejectedMessage
   | PeerJoinedMessage
   | PeerLeftMessage
-  | ServerErrorMessage;
+  | ServerErrorMessage
+  | OfferMessage
+  | AnswerMessage
+  | IceMessage;
 
 // ---------------------------------------------------------------------------
 // Validation helpers
@@ -192,6 +195,6 @@ export function parseServerMessage(raw: unknown): ServerMessage | null {
   const msg = raw as Record<string, unknown>;
   if (msg.v !== PROTOCOL_VERSION) return null;
   if (typeof msg.type !== "string") return null;
-  if (!["room-created", "join-accepted", "join-rejected", "peer-joined", "peer-left", "error"].includes(msg.type)) return null;
+  if (!["room-created", "join-accepted", "join-rejected", "peer-joined", "peer-left", "error", "offer", "answer", "ice"].includes(msg.type)) return null;
   return msg as unknown as ServerMessage;
 }

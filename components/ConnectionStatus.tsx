@@ -11,12 +11,12 @@ interface ConnectionStatusProps {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType; bg: string }> = {
-  disconnected: { label: "Disconnected", color: "text-foreground/60", bg: "bg-foreground/5", icon: WifiOff },
-  connectable: { label: "Ready", color: "text-teal-500", bg: "bg-teal-500/10", icon: Wifi },
-  connecting: { label: "Connecting...", color: "text-yellow-500", bg: "bg-yellow-500/10", icon: Wifi },
-  connected: { label: "Connected", color: "text-teal-400", bg: "bg-teal-500/10", icon: Wifi },
-  reconnecting: { label: "Reconnecting...", color: "text-yellow-500", bg: "bg-yellow-500/10", icon: RefreshCw },
-  failed: { label: "Connection Failed", color: "text-red-400", bg: "bg-red-500/10", icon: AlertCircle },
+  disconnected: { label: "Disconnected", color: "text-[#788aa3]", bg: "bg-[#666a86]/15 border-[#666a86]/30", icon: WifiOff },
+  connectable: { label: "Waiting for Peer...", color: "text-[#e8ddb5]", bg: "bg-[#e8ddb5]/10 border-[#e8ddb5]/25", icon: Wifi },
+  connecting: { label: "Connecting to Peer...", color: "text-[#92b6b1]", bg: "bg-[#92b6b1]/10 border-[#92b6b1]/25", icon: RefreshCw },
+  connected: { label: "Connected", color: "text-[#b2c9ab]", bg: "bg-[#b2c9ab]/15 border-[#b2c9ab]/30", icon: Wifi },
+  reconnecting: { label: "Reconnecting...", color: "text-[#e8ddb5]", bg: "bg-[#e8ddb5]/10 border-[#e8ddb5]/25", icon: RefreshCw },
+  failed: { label: "Connection Failed", color: "text-rose-300", bg: "bg-rose-500/10 border-rose-500/25", icon: AlertCircle },
 };
 
 export function ConnectionStatus({ state, onReconnect, className }: ConnectionStatusProps) {
@@ -27,23 +27,23 @@ export function ConnectionStatus({ state, onReconnect, className }: ConnectionSt
     <AnimatePresence>
       {state !== "connected" && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
+          exit={{ opacity: 0, y: -8 }}
           className={cn(
-            "flex items-center gap-3 rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 px-4 py-2.5 text-sm backdrop-blur-xl shadow-lg",
+            "mx-auto flex w-fit items-center gap-2.5 rounded-full border border-white/[0.08] px-4 py-2 text-xs font-medium backdrop-blur-xl shadow-lg shadow-black/30",
             config.bg,
             className
           )}
         >
-          <Icon className={cn("h-4 w-4", config.color)} />
+          <Icon className={cn("h-3.5 w-3.5", config.color)} />
           <span className={config.color}>{config.label}</span>
           {onReconnect && (
             <>
-              <div className="w-px h-4 bg-white/10" />
+              <div className="w-px h-3 bg-white/10" />
               <button
                 onClick={onReconnect}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all duration-200"
+                className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
               >
                 Retry
               </button>

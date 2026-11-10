@@ -45,9 +45,20 @@ export default function HomePage() {
     }
   }, [error]);
 
+  // Automatically join room if ?room=123456 is in the URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlRoom = params.get("room");
+      if (urlRoom && /^\d{6}$/.test(urlRoom) && !roomCode) {
+        joinRoom(urlRoom);
+      }
+    }
+  }, [joinRoom, roomCode]);
+
   const handleDrop = async (files: File[]) => {
-    if (connectionState !== "connected") {
-      setToast({ message: "Connect to a peer first" });
+    if (connectionState !== "connected" || !otherPeerId) {
+      setToast({ message: "Connect to a peer first", type: "error" });
       return;
     }
 
@@ -56,7 +67,7 @@ export default function HomePage() {
         await sendFile(file);
       } catch (e: any) {
         console.error("Transfer failed:", e);
-        setToast({ message: `Failed to send ${file.name}: ${e.message || "Unknown error"}` });
+        setToast({ message: `Failed to send ${file.name}: ${e.message || "Unknown error"}`, type: "error" });
       }
     }
   };
@@ -75,28 +86,28 @@ export default function HomePage() {
             transition={{ staggerChildren: 0.1 }}
             className="mx-auto max-w-4xl"
           >
-            {isConnected && roomCode && (
+            {roomCode && otherPeerId && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 className="mb-6"
               >
-                <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur-xl shadow-lg flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    Room:{" "}
-                    <span className="font-mono text-teal-400 tracking-wider text-lg">{roomCode}</span>
-                  </div>
+                <div className="rounded-2xl border border-[#666a86]/35 bg-[#131722]/85 p-4 backdrop-blur-xl shadow-lg flex items-center justify-between">
                   <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-[#788aa3] uppercase tracking-wider">Connected Room:</span>
+                    <span className="font-mono text-[#e8ddb5] font-bold tracking-widest text-lg">{roomCode}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setShowQR(true)}
-                      className="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10 transition-all duration-200"
+                      className="rounded-xl border border-[#666a86]/40 bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-[#f4efe1] hover:bg-[#666a86]/20 transition-colors"
                     >
                       Show QR
                     </button>
                     <button
                       onClick={leaveRoom}
-                      className="rounded-lg bg-red-500/10 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/20 transition-all duration-200"
+                      className="rounded-xl bg-rose-500/10 px-3.5 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition-colors"
                     >
                       Leave
                     </button>
@@ -105,8 +116,30 @@ export default function HomePage() {
               </motion.div>
             )}
 
-            {!isConnected && (
-              <ConnectionStatus state={connectionState} onReconnect={leaveRoom} />
+            {!isConnected && connectionState !== "failed" && connectionState !== "disconnected" && (
+              <ConnectionStatus state={connectionState} />
+            )}
+
+            {connectionState === "failed" && (
+              <div className="mb-6">
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-center">
+                  <div className="text-sm text-red-400 font-medium mb-2">Connection Failed</div>
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={() => createRoom()}
+                      className="rounded-lg bg-red-500/20 px-4 py-2 text-sm text-red-400 hover:bg-red-500/30 transition-all duration-200"
+                    >
+                      Retry
+                    </button>
+                    <button
+                      onClick={leaveRoom}
+                      className="rounded-lg bg-white/5 px-4 py-2 text-sm text-muted-foreground hover:bg-white/10 transition-all duration-200"
+                    >
+                      Leave
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             <RoomManager
@@ -119,14 +152,14 @@ export default function HomePage() {
               onLeaveRoom={leaveRoom}
             />
 
-            {isConnected && (
+            {isConnected && otherPeerId && (
               <motion.div
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                 animate={{ opacity: 1, height: "auto", marginBottom: "1.5rem" }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 className="mt-8"
               >
-                <FileDropzone onFilesSelected={handleDrop} disabled={!isConnected} />
+                <FileDropzone onFilesSelected={handleDrop} disabled={!isConnected || !otherPeerId} />
               </motion.div>
             )}
 
@@ -151,48 +184,39 @@ export default function HomePage() {
             <AnimatePresence>
               {receivedFiles.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
+                  exit={{ opacity: 0, y: -16 }}
                   className="mt-8"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Received Files</h3>
-                    <button
-                      onClick={clearReceivedFiles}
-                      className="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10 transition-all duration-200"
-                    >
-                      Clear All
-                    </button>
-                  </div>
                   <FileList files={receivedFiles} onDownload={downloadFile} onRemove={removeReceivedFile} />
                 </motion.div>
               )}
             </AnimatePresence>
 
             <AnimatePresence>
-              {isConnected && (
+              {isConnected && otherPeerId && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
+                  exit={{ opacity: 0, y: -16 }}
                   className="mt-8"
                 >
-                  <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur-xl shadow-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                  <div className="rounded-3xl border border-[#666a86]/35 bg-[#131722]/70 p-5 backdrop-blur-xl shadow-lg">
+                    <div className="grid grid-cols-3 gap-4 text-center divide-x divide-[#666a86]/30">
                       <div>
-                        <div className="text-sm text-muted-foreground/70">Active Transfers</div>
-                        <div className="text-2xl font-bold text-teal-400">
+                        <div className="text-xs font-medium text-[#788aa3]">Active Transfers</div>
+                        <div className="text-2xl font-bold font-mono text-[#b2c9ab] mt-1">
                           {transfers.filter((t) => t.status === "transferring").length}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground/70">Files Received</div>
-                        <div className="text-2xl font-bold text-teal-400">{receivedFiles.length}</div>
+                        <div className="text-xs font-medium text-[#788aa3]">Files Received</div>
+                        <div className="text-2xl font-bold font-mono text-[#e8ddb5] mt-1">{receivedFiles.length}</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground/70">
-                          Total:{" "}
+                        <div className="text-xs font-medium text-[#788aa3]">Transferred</div>
+                        <div className="text-2xl font-bold font-mono text-[#92b6b1] mt-1">
                           {formatFileSize(transfers.reduce((sum: number, t) => sum + t.transferredBytes, 0))}
                         </div>
                       </div>
@@ -210,35 +234,36 @@ export default function HomePage() {
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 100 }}
-            className="fixed top-24 right-4 z-50 max-w-sm w-full"
+            initial={{ opacity: 0, x: 80, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 80, scale: 0.95 }}
+            transition={{ type: "spring", damping: 25, stiffness: 350 }}
+            className="fixed top-20 right-4 z-50 max-w-sm w-full px-4 sm:px-0"
           >
             <div
               className={cn(
-                "rounded-xl border p-4",
+                "rounded-2xl border p-4 backdrop-blur-2xl shadow-2xl shadow-black/50 ring-1",
                 toast.type === "error"
-                  ? "border-red-500/30 bg-red-500/10"
-                  : "border-teal-500/30 bg-teal-500/10"
+                  ? "border-rose-500/30 bg-[#160d14]/95 ring-rose-500/20 text-rose-200"
+                  : "border-[#92b6b1]/35 bg-[#131722]/95 ring-[#92b6b1]/20 text-[#b2c9ab]"
               )}
             >
               <div className="flex items-center gap-3">
                 {toast.type === "error" ? (
-                  <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
+                  <AlertCircle className="h-5 w-5 text-rose-400 flex-shrink-0" />
                 ) : (
-                  <div className="h-5 w-5 rounded-full bg-teal-500/30 flex-shrink-0" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-[#b2c9ab] flex-shrink-0" />
                 )}
-                <div>
+                <div className="min-w-0">
                   <div
                     className={cn(
-                      "font-medium text-sm",
-                      toast.type === "error" ? "text-red-300" : "text-teal-300"
+                      "font-semibold text-sm",
+                      toast.type === "error" ? "text-rose-300" : "text-[#e8ddb5]"
                     )}
                   >
-                    {toast.type === "error" ? "Error" : "Success"}
+                    {toast.type === "error" ? "Notice" : "Success"}
                   </div>
-                  <div className="text-sm text-muted-foreground/70">{toast.message}</div>
+                  <div className="text-xs text-[#f4efe1]/80 mt-0.5 break-words">{toast.message}</div>
                 </div>
               </div>
             </div>

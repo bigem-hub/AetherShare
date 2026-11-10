@@ -24,12 +24,14 @@ export function getSupabaseBrowserClient(): SupabaseClient<any> {
     return supabaseClient
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!rawUrl || !supabaseKey) {
     throw new Error('Supabase URL or anon key not configured in environment variables')
   }
+
+  const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '')
 
   // Create client with browser-specific configuration
   supabaseClient = createClient(supabaseUrl, supabaseKey, {

@@ -46,11 +46,14 @@ export type TransferStatus =
 
 export type TransferEvent =
   | { type: "state-change"; state: ConnectionState }
+  | { type: "room-created"; room: string; peer: string }
+  | { type: "room-joined"; room: string; peer: string; other?: string }
   | { type: "transfer-start"; transferId: string; file: TransferFile }
   | { type: "transfer-progress"; transferId: string; transferred: number; total: number; speed: number }
   | { type: "transfer-complete"; transferId: string }
   | { type: "transfer-error"; transferId: string; error: string }
   | { type: "transfer-cancel"; transferId: string }
+  | { type: "transfer-retry"; transferId: string }
   | { type: "file-received"; file: ReceivedFile }
   | { type: "peer-disconnected" }
   | { type: "peer-joined"; room: string; peer: string }
@@ -99,6 +102,7 @@ export class WebRTCManager {
   private isInitiator: boolean = false;
   private encryptionKey: string | null = null;
   private activeTransfers: Map<string, { cancelled: () => void }> = new Map();
+  private pendingIceCandidates: RTCIceCandidateInit[] = [];
 
   constructor(signalingUrl?: string, config?: WebRTCConfig) {
     this.signaling = new SignalingClient(signalingUrl);
@@ -119,7 +123,9 @@ export class WebRTCManager {
   private handleSignalingEvent(event: string, data?: unknown): void {
     switch (event) {
       case "connect":
-        this.updateState("connectable");
+        if (this.state === "disconnected") {
+          this.updateState("connectable");
+        }
         break;
       case "room-created":
         this.handleRoomCreated(data as { room: string; peer: string; expiresAt: string });
@@ -132,6 +138,9 @@ export class WebRTCManager {
         break;
       case "peer-left":
         this.handlePeerLeft(data as { room: string; peer: string });
+        break;
+      case "message":
+        void this.handlePeerMessage(data);
         break;
       case "error":
         console.error("Signaling error:", data);
@@ -198,11 +207,109 @@ export class WebRTCManager {
     });
   }
 
+  private async handlePeerMessage(data: any): Promise<void> {
+    if (!data || typeof data !== "object") return;
+
+    switch (data.type) {
+      case "offer":
+        await this.handleOffer(data);
+        break;
+      case "answer":
+        await this.handleAnswer(data);
+        break;
+      case "ice":
+        await this.handleIceCandidate(data);
+        break;
+    }
+  }
+
+  private async handleOffer(data: { sdp: string; target?: string; from?: string; peer?: string }): Promise<void> {
+    const senderId = data.from || data.peer || (data.target && data.target !== this.myPeerId ? data.target : null);
+    if (senderId) {
+      this.otherPeerId = senderId;
+      this.emit({ type: "peer-joined", room: this.currentRoom || "", peer: senderId });
+    }
+
+    if (!this.peerConnection) {
+      this.createPeerConnection();
+    }
+
+    try {
+      await this.peerConnection!.setRemoteDescription(new RTCSessionDescription({
+        type: "offer",
+        sdp: data.sdp,
+      }));
+
+      await this.flushPendingIceCandidates();
+
+      const answer = await this.peerConnection!.createAnswer();
+      await this.peerConnection!.setLocalDescription(answer);
+
+      if (this.currentRoom && this.otherPeerId && this.peerConnection?.localDescription) {
+        this.signaling.send(this.signaling.sendAnswer(
+          this.currentRoom,
+          this.otherPeerId,
+          this.peerConnection.localDescription.sdp
+        ));
+      }
+    } catch (err) {
+      console.error("Failed to handle offer:", err);
+    }
+  }
+
+  private async handleAnswer(data: { sdp: string; target?: string; from?: string }): Promise<void> {
+    if (!this.peerConnection) {
+      console.warn("Received answer but no peer connection exists");
+      return;
+    }
+
+    try {
+      await this.peerConnection.setRemoteDescription(new RTCSessionDescription({
+        type: "answer",
+        sdp: data.sdp,
+      }));
+
+      await this.flushPendingIceCandidates();
+    } catch (err) {
+      console.error("Failed to handle answer:", err);
+    }
+  }
+
+  private async handleIceCandidate(data: { candidate: RTCIceCandidateInit }): Promise<void> {
+    if (!data.candidate) return;
+
+    if (this.peerConnection && this.peerConnection.remoteDescription) {
+      try {
+        await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+      } catch (err) {
+        console.error("Failed to add ICE candidate:", err);
+      }
+    } else {
+      this.pendingIceCandidates.push(data.candidate);
+    }
+  }
+
+  private async flushPendingIceCandidates(): Promise<void> {
+    if (!this.peerConnection || !this.peerConnection.remoteDescription) return;
+
+    while (this.pendingIceCandidates.length > 0) {
+      const candidate = this.pendingIceCandidates.shift();
+      if (candidate) {
+        try {
+          await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.error("Failed to add pending ICE candidate:", err);
+        }
+      }
+    }
+  }
+
   private handleRoomCreated(data: { room: string; peer: string; expiresAt: string }): void {
     this.currentRoom = data.room;
     this.myPeerId = data.peer;
     this.isInitiator = true;
-    this.updateState("connected");
+    this.emit({ type: "room-created", room: data.room, peer: data.peer });
+    this.updateState("connectable");
   }
 
   private handleJoinAccepted(data: { room: string; peer: string; other?: string }): void {
@@ -211,16 +318,20 @@ export class WebRTCManager {
     if (data.other) {
       this.otherPeerId = data.other;
     }
-    this.updateState("connected");
+    this.emit({ type: "room-joined", room: data.room, peer: data.peer, other: data.other });
+    if (data.other) {
+      this.updateState("connecting");
+    } else {
+      this.updateState("connectable");
+    }
   }
 
   private handlePeerJoined(data: { room: string; peer: string }): void {
-    if (this.otherPeerId === null) {
+    if (!this.otherPeerId) {
       this.otherPeerId = data.peer;
     }
-    if (this.state !== "connected") {
-      this.updateState("connected");
-    }
+    this.emit({ type: "peer-joined", room: data.room, peer: data.peer });
+    this.updateState("connecting");
     this.startNegotiation();
   }
 
@@ -229,41 +340,48 @@ export class WebRTCManager {
     if (roomCode === this.currentRoom && this.otherPeerId === data.peer) {
       this.otherPeerId = null;
       this.closePeerConnection();
-      this.updateState("disconnected");
+      this.updateState("connectable");
       this.emit({ type: "peer-disconnected" });
     }
   }
 
   private startNegotiation(): void {
-    if (this.isInitiator && this.state === "connected" && this.otherPeerId) {
-      this.createOffer();
+    if (this.isInitiator && this.otherPeerId) {
+      void this.createOffer();
     }
   }
 
-  private createOffer(): void {
+  private async createOffer(): Promise<void> {
     if (!this.peerConnection) {
       this.createPeerConnection();
     }
-    if (this.peerConnection) {
-      this.peerConnection.createOffer()
-        .then(sdp => {
-          if (this.peerConnection?.connectionState === "connecting" || this.peerConnection?.connectionState === "connected") {
-            return this.peerConnection!.setLocalDescription(sdp);
-          }
-          throw new Error("Peer connection not in connecting/connected state");
-        })
-        .then(() => {
-          setTimeout(() => {
-            if (this.peerConnection?.localDescription && this.currentRoom && this.otherPeerId) {
-              this.signaling.send(this.signaling.sendOffer(
-                this.currentRoom,
-                this.otherPeerId,
-                this.peerConnection!.localDescription!.sdp
-              ));
-            }
-          }, 100);
-        })
-        .catch(err => console.error("Offer creation failed:", err));
+    if (!this.peerConnection) return;
+
+    // Offerer creates the DataChannel
+    if (!this.dataChannel) {
+      try {
+        const channel = this.peerConnection.createDataChannel("fileTransfer", {
+          ordered: true,
+        });
+        this.setupDataChannel(channel);
+      } catch (err) {
+        console.error("Failed to create data channel:", err);
+      }
+    }
+
+    try {
+      const offer = await this.peerConnection.createOffer();
+      await this.peerConnection.setLocalDescription(offer);
+
+      if (this.peerConnection.localDescription && this.currentRoom && this.otherPeerId) {
+        this.signaling.send(this.signaling.sendOffer(
+          this.currentRoom,
+          this.otherPeerId,
+          this.peerConnection.localDescription.sdp
+        ));
+      }
+    } catch (err) {
+      console.error("Offer creation failed:", err);
     }
   }
 
@@ -318,6 +436,8 @@ export class WebRTCManager {
   }
 
   private setupDataChannelHandlers(channel: RTCDataChannel): void {
+    channel.binaryType = "arraybuffer";
+
     channel.onopen = () => {
       this.updateState("connected");
     };
@@ -341,7 +461,8 @@ export class WebRTCManager {
     const msg = parseFileMessage(data);
     if (!msg) return;
 
-    switch (msg.messageType) {
+    const messageType = msg.messageType || (msg as any).type;
+    switch (messageType) {
       case "file-init":
         this.handleFileInit(msg as FileInitMessage);
         break;
@@ -608,9 +729,8 @@ export class WebRTCManager {
   }
 
   retryTransfer(transferId: string): void {
-    // In a real implementation, this would re-queue the file for transfer
-    // For now, we emit a retry event that the hook can handle
-    this.emit({ type: "transfer-error", transferId, error: "Retry requested" });
+    // Emit a retry event that the hook can handle to re-queue the transfer
+    this.emit({ type: "transfer-retry", transferId } as TransferEvent);
   }
 
   private async readFileChunk(file: File, start: number, end: number): Promise<Uint8Array> {
@@ -620,12 +740,14 @@ export class WebRTCManager {
   }
 
   private encryptChunkData(data: Uint8Array): { ciphertext: ArrayBuffer; iv: string } {
-    // Simplified encryption - in production use proper AES-GCM
     const iv = this.generateIV();
-    const ivArray = new Uint8Array(iv.buffer);
+    const bufferSlice =
+      data.byteOffset === 0 && data.byteLength === data.buffer.byteLength
+        ? data.buffer
+        : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
     return {
-      ciphertext: data.buffer as ArrayBuffer,
-      iv: arrayBufferToBase64(ivArray as unknown as ArrayBuffer),
+      ciphertext: bufferSlice as ArrayBuffer,
+      iv: arrayBufferToBase64(iv.buffer),
     };
   }
 
@@ -634,12 +756,7 @@ export class WebRTCManager {
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
+    return arrayBufferToBase64(buffer);
   }
 
   private async calculateChecksum(file: File): Promise<string> {
@@ -672,12 +789,17 @@ export class WebRTCManager {
   }
 
   private closePeerConnection(): void {
+    this.pendingIceCandidates = [];
     if (this.dataChannel) {
-      this.dataChannel.close();
+      try {
+        this.dataChannel.close();
+      } catch (e) {}
       this.dataChannel = null;
     }
     if (this.peerConnection) {
-      this.peerConnection.close();
+      try {
+        this.peerConnection.close();
+      } catch (e) {}
       this.peerConnection = null;
     }
   }

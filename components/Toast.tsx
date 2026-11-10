@@ -79,19 +79,19 @@ const ToastContainer = ({ toasts, removeToast }: {
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 300, scale: 0.9 }}
             transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="rounded-xl border bg-slate-900/95 backdrop-blur p-4 shadow-lg"
+            className="rounded-2xl border border-[#666a86]/35 bg-[#131722]/95 backdrop-blur-xl p-4 shadow-2xl ring-1 ring-white/10 text-[#f4efe1]"
           >
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0">
-                {toast.type === "success" && <Check className="h-5 w-5 text-teal-500" />}
-                {toast.type === "error" && <AlertCircle className="h-5 w-5 text-red-500" />}
-                {toast.type === "info" && <Info className="h-5 w-5 text-teal-400" />}
-                {toast.type === "warning" && <AlertCircle className="h-5 w-5 text-yellow-500" />}
+                {toast.type === "success" && <Check className="h-5 w-5 text-[#b2c9ab]" />}
+                {toast.type === "error" && <AlertCircle className="h-5 w-5 text-rose-400" />}
+                {toast.type === "info" && <Info className="h-5 w-5 text-[#92b6b1]" />}
+                {toast.type === "warning" && <AlertCircle className="h-5 w-5 text-[#e8ddb5]" />}
               </div>
 
               <div className="flex-1 min-w-0">
-                {toast.title && <div className="font-medium text-foreground">{toast.title}</div>}
-                <div className="text-sm text-muted-foreground">{toast.message}</div>
+                {toast.title && <div className="font-medium text-[#e8ddb5]">{toast.title}</div>}
+                <div className="text-sm text-[#788aa3]">{toast.message}</div>
               </div>
 
               <button

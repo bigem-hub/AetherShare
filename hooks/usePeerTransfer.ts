@@ -59,9 +59,10 @@ export function usePeerTransfer(signalingUrl?: string): UsePeerTransferResult {
       switch (event.type) {
         case "state-change":
           setConnectionState(event.state);
-          if (event.state === "connected") {
+          if (event.state === "connected" || event.state === "connectable") {
             setRoomCode(manager.getRoomCode() ?? null);
             setPeerId(manager.getPeerId() ?? null);
+            setOtherPeerId(manager.getOtherPeerId() ?? null);
             setError(null);
           }
           if (event.state === "disconnected") {
@@ -72,8 +73,21 @@ export function usePeerTransfer(signalingUrl?: string): UsePeerTransferResult {
           }
           break;
 
+        case "room-created":
+          setRoomCode(event.room);
+          setPeerId(event.peer);
+          setError(null);
+          break;
+
+        case "room-joined":
+          setRoomCode(event.room);
+          setPeerId(event.peer);
+          if (event.other) setOtherPeerId(event.other);
+          setError(null);
+          break;
+
         case "peer-joined":
-          setOtherPeerId(manager.getOtherPeerId() ?? null);
+          setOtherPeerId(event.peer || manager.getOtherPeerId() || null);
           break;
 
         case "peer-left":
@@ -140,6 +154,24 @@ export function usePeerTransfer(signalingUrl?: string): UsePeerTransferResult {
             transfersMapRef.current.set(event.transferId, updated);
             setTransfers([...transfersMapRef.current.values()]);
             setError(event.error);
+          }
+          break;
+
+        case "transfer-retry":
+          // Reset the transfer to preparing state for retry
+          const retrying = transfersMapRef.current.get(event.transferId);
+          if (retrying) {
+            const updated = {
+              ...retrying,
+              status: "preparing" as const,
+              error: undefined,
+              progress: 0,
+              transferredBytes: 0,
+              startTime: Date.now(),
+              endTime: undefined,
+            };
+            transfersMapRef.current.set(event.transferId, updated);
+            setTransfers([...transfersMapRef.current.values()]);
           }
           break;
 

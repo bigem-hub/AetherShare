@@ -71,8 +71,10 @@ export async function calculateChecksumFromBuffer(buffer: ArrayBuffer): Promise<
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
   }
   return btoa(binary);
 }
@@ -152,10 +154,11 @@ export function parseFileMessage(data: string | ArrayBuffer): FileMessage | null
   try {
     const str = typeof data === "string" ? data : new TextDecoder().decode(data);
     const parsed = JSON.parse(str);
-    // Map messageType back to type for compatibility
-    if (parsed.messageType) {
-      parsed.type = parsed.messageType;
-      delete parsed.messageType;
+    // Support both messageType and type for compatibility
+    const msgType = parsed.messageType || parsed.type;
+    if (msgType) {
+      parsed.messageType = msgType;
+      parsed.type = msgType;
     }
     return parsed as FileMessage;
   } catch {
@@ -174,7 +177,10 @@ export function serializeMessage(msg: FileMessage): ArrayBuffer {
     delete serialized.type;
   }
   const encoded = new TextEncoder().encode(JSON.stringify(serialized));
-  return encoded.buffer as ArrayBuffer;
+  if (encoded.byteOffset === 0 && encoded.byteLength === encoded.buffer.byteLength) {
+    return encoded.buffer as ArrayBuffer;
+  }
+  return encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
 }
 
 /**

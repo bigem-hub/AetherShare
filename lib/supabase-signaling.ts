@@ -207,18 +207,30 @@ export class SupabaseSignalingClient {
   private handleMessage(data: any): void {
     if (!data || typeof data !== 'object') return
 
-    // Deduplicate messages
-    const key = `${data.type}-${data.room || ''}-${data.peer || ''}`
-    const now = Date.now()
-
-    if (key === this.lastMessageKey && now - this.lastMessageTime < 500) {
-      return // Skip duplicate
+    // Ignore messages sent by ourselves
+    if (data.from === this.peerId || (data.peer === this.peerId && data.type !== 'join-accepted')) {
+      return
     }
-    this.lastMessageKey = key
-    this.lastMessageTime = now
 
     // Only process messages for our room
     if (data.room !== this.currentRoom) return
+
+    // If targeted to a specific peer, ignore if not intended for us
+    if (data.target && data.target !== this.peerId) {
+      return
+    }
+
+    // Deduplication: allow ICE candidates, but deduplicate state messages
+    if (data.type !== 'ice') {
+      const key = `${data.type}-${data.room || ''}-${data.peer || data.from || ''}`
+      const now = Date.now()
+
+      if (key === this.lastMessageKey && now - this.lastMessageTime < 500) {
+        return // Skip duplicate
+      }
+      this.lastMessageKey = key
+      this.lastMessageTime = now
+    }
 
     switch (data.type) {
       case 'room-created':
@@ -237,6 +249,23 @@ export class SupabaseSignalingClient {
         if (this.otherPeerId === null) {
           this.otherPeerId = m.peer
         }
+
+        // If this presence was not already a reply, reply with our own presence
+        // so the newcomer immediately learns our peer ID as well!
+        if (this.hasJoined && !m.isReply && this.channel && this.currentRoom) {
+          this.channel.send({
+            type: 'broadcast',
+            event: 'signaling',
+            payload: {
+              v: 1,
+              type: 'peer-joined',
+              room: this.currentRoom,
+              peer: this.peerId,
+              isReply: true
+            }
+          })
+        }
+
         this.emit('peer-joined', data)
         break
       }
@@ -382,8 +411,9 @@ export class SupabaseSignalingClient {
       type: 'offer',
       room,
       target,
+      from: this.peerId,
       sdp
-    }
+    } as any
   }
 
   sendAnswer(room: string, target: string, sdp: string): ClientMessage {
@@ -392,8 +422,9 @@ export class SupabaseSignalingClient {
       type: 'answer',
       room,
       target,
+      from: this.peerId,
       sdp
-    }
+    } as any
   }
 
   sendIce(room: string, target: string, candidate: RTCIceCandidateInit): ClientMessage {
@@ -402,8 +433,9 @@ export class SupabaseSignalingClient {
       type: 'ice',
       room,
       target,
+      from: this.peerId,
       candidate
-    }
+    } as any
   }
 
   leaveRoomMsg(room: string): ClientMessage {

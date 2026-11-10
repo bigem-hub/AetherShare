@@ -50,7 +50,13 @@ export class SignalingClient {
     this.provider = provider
 
     if (provider === 'supabase') {
-      this.impl = new SupabaseSignalingClient()
+      try {
+        this.impl = new SupabaseSignalingClient()
+      } catch (err) {
+        console.warn('Failed to initialize Supabase signaling, falling back to WebSocket:', err)
+        this.provider = 'websocket'
+        this.impl = new WebSocketSignalingClient(url ?? DEFAULT_SIGNALING_URL)
+      }
     } else {
       this.impl = new WebSocketSignalingClient(url ?? DEFAULT_SIGNALING_URL)
     }

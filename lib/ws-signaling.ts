@@ -68,12 +68,21 @@ export class WebSocketSignalingClient {
     }
 
     try {
-      // Use wss:// for production, ws:// for localhost
-      const wsUrl = this.url.startsWith('localhost') || this.url.startsWith('127.')
-        ? this.url.replace('ws://', 'ws://')
-        : this.url.replace('ws://', 'wss://').replace('wss://wss://', 'wss://')
+      let targetUrl = this.getUrlFromEnv()
+      if (!targetUrl.startsWith('ws://') && !targetUrl.startsWith('wss://')) {
+        const defaultProto = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss://' : 'ws://'
+        targetUrl = defaultProto + targetUrl
+      }
 
-      this.ws = new WebSocket(wsUrl)
+      // Upgrade ws:// to wss:// in production HTTPS environments (except for local testing)
+      const isLocal = targetUrl.includes('localhost') || targetUrl.includes('127.0.0.1')
+      if (targetUrl.startsWith('ws://') && !isLocal) {
+        if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+          targetUrl = targetUrl.replace('ws://', 'wss://')
+        }
+      }
+
+      this.ws = new WebSocket(targetUrl)
       this.setupEventHandlers()
     } catch (error: any) {
       this.emit("error", error.message || "WebSocket creation failed")

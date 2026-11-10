@@ -34,23 +34,19 @@ const config: Config = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        // AetherShare cyberpunk palette
+        // User custom palette
+        brand: {
+          dusk: "#666a86",
+          slate: "#788aa3",
+          sage: "#92b6b1",
+          celadon: "#b2c9ab",
+          cream: "#e8ddb5",
+        },
         ink: {
-          950: "#05060a",
-          900: "#0a0d14",
-          800: "#0f131c",
-          700: "#161b27",
-        },
-        teal: {
-          50: "#e6fff9",
-          400: "#22d3ee",
-          500: "#06b6d4",
-          600: "#0891b2",
-        },
-        violet: {
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
+          950: "#090b10",
+          900: "#0f1219",
+          800: "#161b24",
+          700: "#1f2533",
         },
       },
       fontFamily: {

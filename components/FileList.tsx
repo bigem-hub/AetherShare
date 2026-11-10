@@ -22,13 +22,13 @@ const formatSize = (bytes: number) => {
 export function FileList({ files, onDownload, onRemove }: FileListProps) {
   if (files.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/10 bg-gradient-to-b from-slate-900/30 to-slate-950/30 p-8 text-center">
-        <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-teal-500/10 flex items-center justify-center">
-          <FileIcon className="h-6 w-6 text-teal-400" />
+      <div className="rounded-3xl border border-dashed border-[#666a86]/35 bg-[#131722]/40 p-8 text-center backdrop-blur-md">
+        <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-[#92b6b1]/15 ring-1 ring-[#92b6b1]/25 flex items-center justify-center">
+          <FileIcon className="h-6 w-6 text-[#b2c9ab]" />
         </div>
-        <h3 className="text-lg font-medium">No files received</h3>
-        <p className="mt-2 text-sm text-muted-foreground/70">
-          Files transferred from connected peers will appear here
+        <h3 className="text-base font-semibold text-[#f4efe1]">No files received yet</h3>
+        <p className="mt-1 text-xs text-[#788aa3]">
+          Files transferred from the connected peer will appear here for download
         </p>
       </div>
     );
@@ -37,10 +37,10 @@ export function FileList({ files, onDownload, onRemove }: FileListProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Received Files</h3>
+        <h3 className="text-base font-bold text-[#f4efe1] tracking-tight">Received Files ({files.length})</h3>
         <button
           onClick={() => files.forEach(f => onRemove(f.id))}
-          className="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10 transition-all duration-200"
+          className="rounded-xl border border-[#666a86]/40 bg-[#131722]/80 px-3 py-1.5 text-xs font-semibold text-[#788aa3] hover:text-[#f4efe1] hover:bg-[#666a86]/20 transition-colors"
         >
           Clear All
         </button>
@@ -51,34 +51,35 @@ export function FileList({ files, onDownload, onRemove }: FileListProps) {
           <motion.div
             key={file.id}
             layout
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="flex items-center justify-between rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur transition-all duration-200"
+            exit={{ opacity: 0, x: -16 }}
+            className="flex items-center justify-between rounded-2xl border border-[#666a86]/35 bg-[#131722]/85 p-4 backdrop-blur-xl transition-all duration-150 hover:border-[#92b6b1]/40 shadow-lg shadow-black/20"
           >
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-teal-500/10 p-2">
-                <FileIcon className="h-5 w-5 text-teal-400" />
+            <div className="flex items-center gap-3.5 min-w-0 pr-4">
+              <div className="rounded-xl bg-[#92b6b1]/15 p-2.5 ring-1 ring-[#92b6b1]/25 flex-shrink-0">
+                <FileIcon className="h-5 w-5 text-[#b2c9ab]" />
               </div>
-              <div>
-                <p className="font-medium text-foreground">{file.name}</p>
-                <p className="text-xs text-muted-foreground/60">
-                  {file.type} • {formatSize(file.size)}
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-[#f4efe1] truncate">{file.name}</p>
+                <p className="text-xs text-[#788aa3]">
+                  {formatSize(file.size)} • {file.type || "file"}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => onDownload(file)}
-                className="rounded-lg bg-teal-500/10 p-2 text-teal-400 hover:bg-teal-500/20 transition-all duration-200"
-                title="Download"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#92b6b1]/20 px-3 py-2 text-xs font-semibold text-[#b2c9ab] hover:bg-[#92b6b1]/30 ring-1 ring-[#92b6b1]/30 transition-colors"
+                title="Download file"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-3.5 w-3.5" />
+                <span>Save</span>
               </button>
               <button
                 onClick={() => onRemove(file.id)}
-                className="rounded-lg p-2 text-foreground/40 hover:text-foreground hover:bg-white/10 transition-all duration-200"
+                className="rounded-xl p-2 text-[#788aa3] hover:text-[#f4efe1] hover:bg-white/[0.08] transition-colors"
                 title="Remove"
               >
                 <X className="h-4 w-4" />

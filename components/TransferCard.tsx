@@ -45,25 +45,25 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
 
   const getStatusColor = () => {
     switch (status) {
-      case "completed": return "border-teal-500/30 bg-teal-500/5";
-      case "failed": return "border-red-500/30 bg-red-500/5";
+      case "completed": return "border-[#b2c9ab]/30 bg-[#b2c9ab]/5";
+      case "failed": return "border-rose-500/30 bg-rose-500/5";
       case "transferring":
-      case "paused": return "border-teal-500/30 bg-teal-500/5";
-      default: return "border-yellow-500/30 bg-yellow-500/5";
+      case "paused": return "border-[#92b6b1]/30 bg-[#92b6b1]/5";
+      default: return "border-[#e8ddb5]/30 bg-[#e8ddb5]/5";
     }
   };
 
   const getStatusIcon = () => {
     switch (status) {
-      case "completed": return <CheckCircle2 className="h-4 w-4 text-teal-500" />;
-      case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case "transferring": return <FileIcon className="h-4 w-4 text-teal-400" />;
-      case "paused": return <Pause className="h-4 w-4 text-yellow-500" />;
+      case "completed": return <CheckCircle2 className="h-4 w-4 text-[#b2c9ab]" />;
+      case "failed": return <AlertCircle className="h-4 w-4 text-rose-400" />;
+      case "transferring": return <FileIcon className="h-4 w-4 text-[#92b6b1]" />;
+      case "paused": return <Pause className="h-4 w-4 text-[#e8ddb5]" />;
       case "queued":
       case "preparing":
       case "cancelled":
-      case "aborted": return <Clock className="h-4 w-4 text-yellow-500" />;
-      default: return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "aborted": return <Clock className="h-4 w-4 text-[#e8ddb5]" />;
+      default: return <Clock className="h-4 w-4 text-[#e8ddb5]" />;
     }
   };
 
@@ -75,41 +75,45 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
     <motion.div
       layout
       className={cn(
-        "w-full rounded-xl border bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur transition-all duration-200",
-        getStatusColor()
+        "w-full rounded-2xl border p-4.5 backdrop-blur-xl transition-all duration-150",
+        status === "completed"
+          ? "border-[#b2c9ab]/30 bg-[#b2c9ab]/[0.05]"
+          : status === "failed"
+            ? "border-rose-500/30 bg-rose-500/[0.04]"
+            : "border-[#666a86]/35 bg-[#131722]/85 shadow-lg shadow-black/30"
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3.5">
         <div className="flex-shrink-0">
-          <div className="rounded-lg bg-white/10 p-2">
-            <FileIcon className="h-5 w-5 text-teal-400" />
+          <div className="rounded-xl bg-[#92b6b1]/15 p-2.5 ring-1 ring-[#92b6b1]/25">
+            <FileIcon className="h-5 w-5 text-[#b2c9ab]" />
           </div>
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <h4
                 className={cn(
-                  "font-medium cursor-pointer transition-colors",
-                  status === "completed" ? "text-teal-400 hover:text-teal-300" : "text-foreground hover:text-teal-400"
+                  "font-semibold text-sm truncate cursor-pointer transition-colors",
+                  status === "completed" ? "text-[#b2c9ab] hover:text-[#e8ddb5]" : "text-[#f4efe1] hover:text-[#92b6b1]"
                 )}
                 title={file.name}
                 onClick={() => setIsExpanded(!isExpanded)}
               >
                 {displayFileName}
               </h4>
-              <p className="text-xs text-muted-foreground/60">
-                {formatSize(file.size)} • {"sent"}
+              <p className="text-xs text-[#788aa3]">
+                {formatSize(file.size)} • sent
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               {getStatusIcon()}
               {status === "completed" && onDownload && (
                 <button
                   onClick={onDownload}
-                  className="rounded-full p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 transition-all duration-200"
+                  className="rounded-xl p-1.5 text-[#b2c9ab] hover:text-[#e8ddb5] hover:bg-[#b2c9ab]/15 transition-colors"
                   title="Download"
                 >
                   <Download className="h-4 w-4" />
@@ -118,7 +122,7 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
               {status === "transferring" && onPause && (
                 <button
                   onClick={onPause}
-                  className="rounded-full p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 transition-all duration-200"
+                  className="rounded-xl p-1.5 text-[#788aa3] hover:text-[#f4efe1] hover:bg-white/10 transition-colors"
                   title="Pause"
                 >
                   <Pause className="h-4 w-4" />
@@ -127,7 +131,7 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
               {status === "paused" && onResume && (
                 <button
                   onClick={onResume}
-                  className="rounded-full p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 transition-all duration-200"
+                  className="rounded-xl p-1.5 text-[#92b6b1] hover:text-[#b2c9ab] hover:bg-[#92b6b1]/15 transition-colors"
                   title="Resume"
                 >
                   <Play className="h-4 w-4" />
@@ -137,22 +141,20 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
           </div>
 
           {status !== "completed" && status !== "failed" && (
-            <>
-              <div className="mt-3">
-                <div className="flex items-center justify-between text-xs text-muted-foreground/60">
-                  <span>{Math.round(file.progress)}%</span>
-                  <span>{formatSpeed(file.transferredBytes)} / {formatSize(file.totalBytes)}</span>
-                </div>
-                <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-teal-500 to-violet-600"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${file.progress}%` }}
-                    transition={{ duration: 0.3 }}
-                  />
-                </div>
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-medium text-[#788aa3]">
+                <span className="font-mono text-[#e8ddb5]">{Math.round(file.progress)}%</span>
+                <span className="font-mono text-[#788aa3]">{formatSpeed(file.transferredBytes)} / {formatSize(file.totalBytes)}</span>
               </div>
-            </>
+              <div className="h-2 rounded-full bg-white/[0.08] overflow-hidden p-[1px]">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-[#788aa3] via-[#92b6b1] to-[#b2c9ab] shadow-[0_0_12px_rgba(178,201,171,0.35)]"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${file.progress}%` }}
+                  transition={{ duration: 0.2 }}
+                />
+              </div>
+            </div>
           )}
 
           {isExpanded && status === "transferring" && (
