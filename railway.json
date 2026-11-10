@@ -1,0 +1,20 @@
+{
+  "servings": [
+    {
+      "id": "aethershare-signaling",
+      "port": "8080",
+      "command": "node server.js",
+      "healthCheckPath": "/health",
+      "healthCheckInterval": "30s",
+      "env": {
+        "NODE_ENV": "production",
+        "SIGNALING_PORT": "8080",
+        "ALLOWED_ORIGINS": "*"
+      },
+      "build": {
+        "buildCommand": "npm install",
+        "startCommand": "node server.js"
+      }
+    }
+  ]
+}

@@ -3,7 +3,7 @@
  */
 
 export const DEFAULT_SIGNALING_PORT = 8080;
-export const DEFAULT_SIGNALING_URL = "ws://localhost:8080";
+export const DEFAULT_SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "ws://localhost:8080";
 
 // Room settings
 export const ROOM_CODE_LENGTH = 6;
