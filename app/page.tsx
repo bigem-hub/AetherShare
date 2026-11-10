@@ -11,11 +11,11 @@ import { TransferQueue } from "@/components/TransferQueue";
 import { FileList } from "@/components/FileList";
 import { usePeerTransfer } from "@/hooks/usePeerTransfer";
 import { AlertCircle } from "lucide-react";
-import { formatFileSize } from "@/lib/utils";
+import { cn, formatFileSize } from "@/lib/utils";
 
 export default function HomePage() {
   const [showQR, setShowQR] = useState(false);
-  const [toast, setToast] = useState<{ message: string } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type?: "error" | "success" } | null>(null);
 
   const {
     connectionState,
@@ -39,7 +39,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (error) {
-      setToast({ message: error });
+      setToast({ message: error, type: "error" });
       const timer = setTimeout(() => setToast(null), 5000);
       return () => clearTimeout(timer);
     }
@@ -56,7 +56,7 @@ export default function HomePage() {
         await sendFile(file);
       } catch (e: any) {
         console.error("Transfer failed:", e);
-        setToast({ message: "Failed to send " + file.name + ": " + (e.message || "Unknown error") });
+        setToast({ message: `Failed to send ${file.name}: ${e.message || "Unknown error"}` });
       }
     }
   };
@@ -82,21 +82,21 @@ export default function HomePage() {
                 exit={{ opacity: 0, y: -10 }}
                 className="mb-6"
               >
-                <div className="rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur flex items-center justify-between">
+                <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur-xl shadow-lg flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">
                     Room:{" "}
-                    <span className="font-mono text-teal-400 tracking-wider">{roomCode}</span>
+                    <span className="font-mono text-teal-400 tracking-wider text-lg">{roomCode}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <button
                       onClick={() => setShowQR(true)}
-                      className="rounded-md bg-white/5 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10 transition-colors"
+                      className="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10 transition-all duration-200"
                     >
                       Show QR
                     </button>
                     <button
                       onClick={leaveRoom}
-                      className="rounded-md bg-red-500/10 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+                      className="rounded-lg bg-red-500/10 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/20 transition-all duration-200"
                     >
                       Leave
                     </button>
@@ -130,85 +130,121 @@ export default function HomePage() {
               </motion.div>
             )}
 
-            {(transfers.length > 0 || receivedFiles.length > 0) && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-8">
-                <TransferQueue transfers={transfers} onCancel={cancelTransfer} onRetry={retryTransfer} onRemove={removeTransfer} />
-              </motion.div>
-            )}
+            <AnimatePresence>
+              {(transfers.length > 0 || receivedFiles.length > 0) && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="mt-8"
+                >
+                  <TransferQueue
+                    transfers={transfers}
+                    onCancel={cancelTransfer}
+                    onRetry={retryTransfer}
+                    onRemove={removeTransfer}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {receivedFiles.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="mt-8"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Received Files</h3>
-                  <button
-                    onClick={clearReceivedFiles}
-                    className="rounded-md bg-white/5 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10 transition-colors"
-                  >
-                    Clear All
-                  </button>
-                </div>
-                <FileList files={receivedFiles} onDownload={downloadFile} onRemove={removeReceivedFile} />
-              </motion.div>
-            )}
+            <AnimatePresence>
+              {receivedFiles.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="mt-8"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Received Files</h3>
+                    <button
+                      onClick={clearReceivedFiles}
+                      className="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-muted-foreground hover:bg-white/10 transition-all duration-200"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <FileList files={receivedFiles} onDownload={downloadFile} onRemove={removeReceivedFile} />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {isConnected && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="mt-8 rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Active Transfers</div>
-                    <div className="text-2xl font-bold text-teal-400">
-                      {transfers.filter((t) => t.status === "transferring").length}
+            <AnimatePresence>
+              {isConnected && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="mt-8"
+                >
+                  <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur-xl shadow-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-sm text-muted-foreground/70">Active Transfers</div>
+                        <div className="text-2xl font-bold text-teal-400">
+                          {transfers.filter((t) => t.status === "transferring").length}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground/70">Files Received</div>
+                        <div className="text-2xl font-bold text-teal-400">{receivedFiles.length}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground/70">
+                          Total:{" "}
+                          {formatFileSize(transfers.reduce((sum: number, t) => sum + t.transferredBytes, 0))}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Files Received</div>
-                    <div className="text-2xl font-bold text-teal-400">{receivedFiles.length}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">
-                      Total:{" "}
-                      {formatFileSize(transfers.reduce((sum: number, t) => sum + t.transferredBytes, 0))}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       </main>
 
       {showQR && roomCode && <QRCodeDisplay roomCode={roomCode} onClose={() => setShowQR(false)} />}
 
-      {toast && (
-        <AnimatePresence>
+      <AnimatePresence>
+        {toast && (
           <motion.div
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
             className="fixed top-24 right-4 z-50 max-w-sm w-full"
           >
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+            <div
+              className={cn(
+                "rounded-xl border p-4",
+                toast.type === "error"
+                  ? "border-red-500/30 bg-red-500/10"
+                  : "border-teal-500/30 bg-teal-500/10"
+              )}
+            >
               <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
+                {toast.type === "error" ? (
+                  <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
+                ) : (
+                  <div className="h-5 w-5 rounded-full bg-teal-500/30 flex-shrink-0" />
+                )}
                 <div>
-                  <div className="font-medium text-red-300">Error</div>
-                  <div className="text-sm text-red-200">{toast.message}</div>
+                  <div
+                    className={cn(
+                      "font-medium text-sm",
+                      toast.type === "error" ? "text-red-300" : "text-teal-300"
+                    )}
+                  >
+                    {toast.type === "error" ? "Error" : "Success"}
+                  </div>
+                  <div className="text-sm text-muted-foreground/70">{toast.message}</div>
                 </div>
               </div>
             </div>
           </motion.div>
-        </AnimatePresence>
-      )}
+        )}
+      </AnimatePresence>
     </>
   );
 }

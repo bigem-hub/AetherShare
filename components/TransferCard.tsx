@@ -45,10 +45,11 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
 
   const getStatusColor = () => {
     switch (status) {
-      case "completed": return "border-teal-500/30";
-      case "failed": return "border-red-500/30";
-      case "transferring": return "border-teal-500/30";
-      default: return "border-yellow-500/30";
+      case "completed": return "border-teal-500/30 bg-teal-500/5";
+      case "failed": return "border-red-500/30 bg-red-500/5";
+      case "transferring":
+      case "paused": return "border-teal-500/30 bg-teal-500/5";
+      default: return "border-yellow-500/30 bg-yellow-500/5";
     }
   };
 
@@ -58,6 +59,10 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
       case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
       case "transferring": return <FileIcon className="h-4 w-4 text-teal-400" />;
       case "paused": return <Pause className="h-4 w-4 text-yellow-500" />;
+      case "queued":
+      case "preparing":
+      case "cancelled":
+      case "aborted": return <Clock className="h-4 w-4 text-yellow-500" />;
       default: return <Clock className="h-4 w-4 text-yellow-500" />;
     }
   };
@@ -70,7 +75,7 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
     <motion.div
       layout
       className={cn(
-        "w-full rounded-xl border bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur",
+        "w-full rounded-xl border bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-4 backdrop-blur transition-all duration-200",
         getStatusColor()
       )}
     >
@@ -83,19 +88,28 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h4
-              className="font-medium text-foreground cursor-pointer hover:text-teal-400 transition-colors"
-              title={file.name}
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {displayFileName}
-            </h4>
+            <div>
+              <h4
+                className={cn(
+                  "font-medium cursor-pointer transition-colors",
+                  status === "completed" ? "text-teal-400 hover:text-teal-300" : "text-foreground hover:text-teal-400"
+                )}
+                title={file.name}
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {displayFileName}
+              </h4>
+              <p className="text-xs text-muted-foreground/60">
+                {formatSize(file.size)} • {"sent"}
+              </p>
+            </div>
 
             <div className="flex items-center gap-2">
+              {getStatusIcon()}
               {status === "completed" && onDownload && (
                 <button
                   onClick={onDownload}
-                  className="rounded-full p-1.5 text-teal-400 hover:bg-teal-500/10 transition-colors"
+                  className="rounded-full p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 transition-all duration-200"
                   title="Download"
                 >
                   <Download className="h-4 w-4" />
@@ -104,7 +118,7 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
               {status === "transferring" && onPause && (
                 <button
                   onClick={onPause}
-                  className="rounded-full p-1.5 text-teal-400 hover:bg-teal-500/10 transition-colors"
+                  className="rounded-full p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 transition-all duration-200"
                   title="Pause"
                 >
                   <Pause className="h-4 w-4" />
@@ -113,7 +127,7 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
               {status === "paused" && onResume && (
                 <button
                   onClick={onResume}
-                  className="rounded-full p-1.5 text-teal-400 hover:bg-teal-500/10 transition-colors"
+                  className="rounded-full p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 transition-all duration-200"
                   title="Resume"
                 >
                   <Play className="h-4 w-4" />
@@ -122,30 +136,24 @@ export function TransferCard({ file, status, onDownload, onPause, onResume }: Tr
             </div>
           </div>
 
-          <div className="mt-2 text-sm text-muted-foreground">
-            <span>{formatSize(file.size)}</span>
-            {status === "transferring" && (
-              <>
-                {" "}•{" "}
-                <span className="text-teal-400 font-medium">{formatSpeed(file.speed)}</span>
-              </>
-            )}
-          </div>
-
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs text-muted-foreground/70">
-              <span>{Math.round(file.progress)}%</span>
-              <span>{formatSpeed(file.transferredBytes)} / {formatSize(file.totalBytes)}</span>
-            </div>
-            <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-teal-500 to-violet-600"
-                initial={{ width: 0 }}
-                animate={{ width: `${file.progress}%` }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
-          </div>
+          {status !== "completed" && status !== "failed" && (
+            <>
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground/60">
+                  <span>{Math.round(file.progress)}%</span>
+                  <span>{formatSpeed(file.transferredBytes)} / {formatSize(file.totalBytes)}</span>
+                </div>
+                <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-teal-500 to-violet-600"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${file.progress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {isExpanded && status === "transferring" && (
             <motion.div

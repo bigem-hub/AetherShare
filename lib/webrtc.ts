@@ -178,7 +178,11 @@ export class WebRTCManager {
   createRoom(name?: string): void {
     this.state = "connecting";
     this.signaling.connect();
-    this.signaling.send(this.signaling.createRoom(name));
+    // Use async method for proper room creation
+    this.signaling.createRoomAsync(name).catch(err => {
+      console.error("Failed to create room:", err);
+      this.updateState("failed");
+    });
   }
 
   joinRoom(roomCode: string, name?: string): void {
@@ -187,7 +191,11 @@ export class WebRTCManager {
       this.currentRoom = roomCode;
       this.signaling.connect();
     }
-    this.signaling.send(this.signaling.joinRoom(roomCode, name));
+    // Use async method for proper room joining
+    this.signaling.joinRoomAsync(roomCode, name).catch(err => {
+      console.error("Failed to join room:", err);
+      this.updateState("failed");
+    });
   }
 
   private handleRoomCreated(data: { room: string; peer: string; expiresAt: string }): void {

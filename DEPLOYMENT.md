@@ -1,90 +1,191 @@
 # AetherShare Deployment Guide
 
-## Problem
-The application at https://aethershare-five.vercel.app shows "Disconnected" because:
-1. Vercel serverless functions don't support persistent WebSocket connections
-2. No signaling server is currently deployed
+## Overview
 
-## Solution - Option 1: Deploy Signaling Server to Railway.app (Recommended)
+AetherShare uses WebRTC for peer-to-peer file transfers. WebRTC requires a **signaling server** to exchange SDP offers, answers, and ICE candidates between peers before establishing a P2P connection.
 
-### 1. Install Railway CLI
+This guide covers two deployment options:
+
+1. **Supabase Realtime** - Serverless signaling using Supabase Realtime channels (no separate server needed)
+2. **Dedicated WebSocket Server** - Self-hosted WebSocket server on Railway, Render, or VPS
+
+## Option 1: Supabase Realtime (Recommended)
+
+### Prerequisites
+- A Supabase project (free tier available at https://supabase.com)
+- Supabase Realtime must be enabled (default in new projects)
+
+### Setup Steps
+
+#### 1. Create a Supabase Project
+1. Go to https://supabase.com and sign in
+2. Click "New project"
+3. Configure your project (region, password, etc.)
+4. Note your **Project URL** and **anon key** (Project Settings → API)
+
+#### 2. Configure Environment Variables in Vercel
+
+Go to your Vercel project → Settings → Environment Variables:
+
+| Variable | Value | Type |
+|----------|-------|------|
+| `NEXT_PUBLIC_SIGNALING_PROVIDER` | `supabase` | Production |
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase Project URL | Production |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your anon key | Production |
+
+**Important:** Do NOT use the service-role key in the frontend!
+
+#### 3. Deploy
+
+```bash
+# From your local repo
+vercel --prod
+```
+
+#### 4. Test
+
+1. Open https://aethershare-five.vercel.app in two different browser tabs or devices
+2. Tab 1: Click "Create Room" - should see a 6-digit room code
+3. Tab 2: Enter the room code and click "Join Room"
+4. Both tabs should show "Connected" status
+5. Test file transfer between peers
+
+---
+
+### How It Works
+
+The Supabase Realtime implementation:
+
+1. **Room Codes**: Generated client-side as 6-digit random numbers
+2. **Presence**: Uses Supabase Realtime channels for peer discovery (`room_XXXXXX`)
+3. **Signaling**: Offers/Answers/ICE are broadcast on the same channel
+4. **WebRTC**: Direct P2P connection after handshake
+
+**Note:** Room codes are not stored server-side in this implementation. For server-authoritative room management with persistent room state, you would need to add database functions and RPC calls.
+
+---
+
+## Option 2: Dedicated WebSocket Server (Fallback)
+
+### Deploy to Railway.app
+
+#### 1. Install Railway CLI
 ```bash
 npm install -g railway
 ```
 
-### 2. Login to Railway
+#### 2. Login to Railway
 ```bash
 railway login
 ```
 
-### 3. Deploy the Signaling Server
+#### 3. Deploy the Signaling Server
 ```bash
 cd /path/to/aethershare
 railway init
 railway up
 ```
 
-### 4. Get the WebSocket URL
-After deployment, Railway will provide a URL like:
+#### 4. Get the WebSocket URL
+Railway will provide a URL like:
 `wss://your-service.up.railway.app`
 
-### 5. Update Environment Variable
-Set `NEXT_PUBLIC_SIGNALING_URL` to your Railway WebSocket URL:
-```bash
-# Example: wss://aethershare-signaling.up.railway.app
-```
+#### 5. Update Environment Variables in Vercel
 
-### 6. Deploy to Vercel with New Environment Variable
-```bash
-vercel --env NEXT_PUBLIC_SIGNALING_URL=wss://your-service.up.railway.app
-```
+Set these in Vercel dashboard:
+- `NEXT_PUBLIC_SIGNALING_PROVIDER=websocket`
+- `NEXT_PUBLIC_SIGNALING_URL=wss://your-service.up.railway.app`
 
-## Solution - Option 2: Deploy to Render.com
+---
 
-### 1. Create a New Web Service on Render
-- Runtime: Node.js
-- Build Command: `npm install`
-- Start Command: `node server/server.js`
-- Port: 8080
+## Environment Variables Reference
 
-### 2. Add Environment Variables
-```
-NODE_ENV=production
-SIGNALING_PORT=8080
-ALLOWED_ORIGINS=*
-```
+### Public Variables (safe to expose)
 
-### 3. Get the WebSocket URL
-Render will provide a URL like:
-`wss://aethershare-signaling.onrender.com`
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `NEXT_PUBLIC_SIGNALING_PROVIDER` | `websocket` or `supabase` | `websocket` | No |
+| `NEXT_PUBLIC_SIGNALING_URL` | WebSocket server URL | `ws://localhost:8080` | Yes for websocket |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | - | Yes for supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key | - | Yes for supabase |
+| `NEXT_PUBLIC_ROOM_EXPIRATION` | Room TTL in ms | `1800000` | No |
 
-### 4. Deploy to Vercel with New Environment Variable
-Set `NEXT_PUBLIC_SIGNALING_URL` in Vercel dashboard.
+### Server-Only Variables (NEVER expose)
 
-## Solution - Option 3: Self-Host on VPS
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SIGNALING_PORT` | WebSocket server port | `8080` |
+| `ALLOWED_ORIGINS` | CORS allowed origins | `*` |
 
-```bash
-# On your VPS
-git clone https://github.com/bigem-hub/AetherShare.git
-cd AetherShare
-npm install
-pm2 start server/server.js --name aethershare-signaling
-```
+---
 
-Use a domain like `wss://signaling.yourdomain.com` with a WebSocket proxy (nginx/Traefik).
+## Troubleshooting
 
-## Solution - Option 4: Use Upstash Redis (Serverless WebSocket)
+### "Disconnected" status
+1. Check browser console for errors
+2. Verify WebSocket/Supabase connection in Network tab
+3. For Supabase: Ensure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are correct
 
-Upstash provides serverless WebSocket connections using Redis:
+### Can't join room
+1. Verify room code is exactly 6 digits (e.g., 123456)
+2. Check that room creator is still connected
+3. Ensure both devices are using the same signaling provider
 
-1. Create Upstash Redis database at https://upstash.com
-2. Use their WebSocket broker
+### File transfer fails
+1. Both peers must show "Connected" status
+2. Check WebRTC stats (chrome://webrtc-internals)
+3. STUN servers may need adjustment for your network
 
-This requires code changes to use Upstash instead of in-memory rooms.
+### Multiple peers in same room
+AetherShare supports exactly 2 peers per room. Attempting to join a full room will result in "Room full" error.
 
-## Quick Start - Local Development
+---
 
-For local testing:
+## Files Modified for Supabase Integration
+
+1. `lib/supabase-signaling.ts` - New Supabase Realtime signaling client
+2. `lib/signaling.ts` - Factory that selects WebSocket or Supabase provider
+3. `lib/ws-signaling.ts` - Original WebSocket client (preserved)
+4. `.env.example` - Updated with Supabase variables
+5. `DEPLOYMENT.md` - This deployment guide
+6. `package.json` - Added `@supabase/supabase-js` dependency
+
+---
+
+## SQL Migrations (Optional - for server-authoritative mode)
+
+The following files are provided in `supabase/migrations/` for optional server-authoritative room management:
+
+- `20241110_create_rooms.sql` - Rooms table
+- `20241110_create_room_peers.sql` - Peer membership table
+- `20241110_create_messages.sql` - Message queue table
+- `20241110_create_functions.sql` - RPC functions
+
+**Note:** These are NOT required for the current client-based implementation. They are provided for future enhancements.
+
+---
+
+## Rollback to WebSocket Signaling
+
+To switch back to WebSocket signaling:
+
+1. Update Vercel environment variables:
+   ```
+   NEXT_PUBLIC_SIGNALING_PROVIDER=websocket
+   NEXT_PUBLIC_SIGNALING_URL=wss://your-signaling-server.com
+   ```
+
+2. Remove Supabase variables:
+   - Remove `NEXT_PUBLIC_SUPABASE_URL`
+   - Remove `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+3. Redeploy: `vercel --prod`
+
+---
+
+## Quick Local Development
+
+### Using WebSocket Server (default)
 ```bash
 # Terminal 1: Start signaling server
 npm run server
@@ -93,21 +194,13 @@ npm run server
 npm run dev
 ```
 
-The app will connect to `ws://localhost:8080` by default.
-
-## Files Modified
-
-- `lib/constants.ts` - Updated DEFAULT_SIGNALING_URL to use environment variable
-- `.env.example` - Added placeholder and deployment instructions
-- `Dockerfile` - Added for Railway/Render deployment
-- `railway.json` - Added for Railway configuration
-
-## Verification
-
-After deployment, test the signaling server:
+### Using Supabase
 ```bash
-curl https://your-signaling-server.com/health
-# Should return: {"status":"ok","timestamp":...}
-```
+# Create .env.local
+echo "NEXT_PUBLIC_SIGNALING_PROVIDER=supabase" > .env.local
+echo "NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co" >> .env.local
+echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=your-key" >> .env.local
 
-Visit https://aethershare-five.vercel.app - it should now show "Connected".
+# Start dev server
+npm run dev
+```

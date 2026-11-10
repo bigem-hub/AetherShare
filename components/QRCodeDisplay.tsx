@@ -13,19 +13,20 @@ interface QRCodeDisplayProps {
 
 export function QRCodeDisplay({ roomCode, onClose }: QRCodeDisplayProps) {
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
   const generateInviteUrl = useCallback(() => {
-    // Generate a URL that includes the room code
     const url = `${window.location.origin}?room=${roomCode}`;
     return url;
   }, [roomCode]);
 
   useEffect(() => {
     const generateQR = async () => {
+      setLoading(true);
       try {
         const url = generateInviteUrl();
         const dataURL = await QRCode.toDataURL(url, {
-          width: 320,
+          width: 300,
           margin: 2,
           color: {
             dark: "#ffffff",
@@ -35,6 +36,8 @@ export function QRCodeDisplay({ roomCode, onClose }: QRCodeDisplayProps) {
         setQrCodeDataURL(dataURL);
       } catch (err) {
         console.error("Failed to generate QR code:", err);
+      } finally {
+        setLoading(false);
       }
     };
     generateQR();
@@ -68,7 +71,7 @@ export function QRCodeDisplay({ roomCode, onClose }: QRCodeDisplayProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.div
@@ -77,59 +80,62 @@ export function QRCodeDisplay({ roomCode, onClose }: QRCodeDisplayProps) {
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", damping: 20, stiffness: 300 }}
           onClick={e => e.stopPropagation()}
-          className="flex flex-col items-center gap-4 rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-6 backdrop-blur-lg max-w-sm w-full"
+          className="flex flex-col items-center gap-6 rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/50 to-slate-950/50 p-8 backdrop-blur-xl shadow-2xl max-w-sm w-full"
         >
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+            className="absolute top-4 right-4 rounded-xl p-2 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all duration-200"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
 
           <div className="text-center">
-            <h3 className="text-lg font-semibold">Invite Peer</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h3 className="text-xl font-semibold">Invite Peer</h3>
+            <p className="mt-2 text-sm text-muted-foreground/70">
               Send this code or QR to the other device
             </p>
           </div>
 
           <div className="relative">
-            {qrCodeDataURL && (
-              <div className="rounded-lg border border-white/10 bg-white p-2">
+            {qrCodeDataURL ? (
+              <div className="rounded-xl border border-white/10 bg-white p-3">
                 <img
                   src={qrCodeDataURL}
                   alt={`QR code for room ${roomCode}`}
                   className="mx-auto"
                 />
               </div>
+            ) : (
+              <div className="flex h-32 w-32 items-center justify-center rounded-xl border border-white/10 bg-slate-950/50">
+                {loading && <div className="animate-spin rounded-full h-6 w-6 border-2 border-teal-500/30 border-t-teal-500" />}
+              </div>
             )}
-            <div className="mt-2">
-              <div className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-to-r from-teal-500/20 to-violet-500/20 px-4 py-2">
-                <span className="font-mono text-lg font-bold text-teal-400 tracking-wider">
+            <div className="mt-4">
+              <div className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500/20 to-violet-500/20 px-4 py-2">
+                <span className="font-mono text-xl font-bold text-teal-400 tracking-wider">
                   {roomCode}
                 </span>
-                <Copy className="h-4 w-4 text-teal-400" />
               </div>
             </div>
           </div>
 
-          <div className="flex w-full gap-2">
+          <div className="flex w-full gap-3">
             <button
               onClick={copyCode}
-              className="flex-1 rounded-md bg-white/5 px-4 py-2 text-sm text-muted-foreground hover:bg-white/10 transition-colors"
+              className="flex-1 rounded-xl bg-white/5 px-4 py-2.5 text-sm text-muted-foreground hover:bg-white/10 transition-all duration-200"
             >
               Copy Code
             </button>
             <button
               onClick={copyLink}
-              className="flex-1 rounded-md bg-white/5 px-4 py-2 text-sm text-muted-foreground hover:bg-white/10 transition-colors"
+              className="flex-1 rounded-xl bg-white/5 px-4 py-2.5 text-sm text-muted-foreground hover:bg-white/10 transition-all duration-200"
             >
               Copy Link
             </button>
             <button
               onClick={shareLink}
-              className="flex-1 rounded-md bg-gradient-to-r from-teal-500 to-violet-600 px-4 py-2 text-sm text-white hover:from-teal-600 hover:to-violet-700 transition-colors"
+              className="flex-1 rounded-xl bg-gradient-to-r from-teal-500 to-violet-600 px-4 py-2.5 text-sm text-white hover:from-teal-600 hover:to-violet-700 transition-all duration-200 shadow-md"
             >
               <Share2 className="h-4 w-4 mx-auto" />
             </button>
