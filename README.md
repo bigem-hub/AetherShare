@@ -8,12 +8,13 @@
 ## 🚀 Features
 
 - **True P2P Transfer**: Files go directly between browsers using WebRTC
+- **Dual Signaling Architecture**: Serverless Supabase Realtime channels with automatic standalone WebSocket fallback
 - **End-to-End Encryption**: AES-256-GCM encryption with ECDH key exchange
 - **Large File Support**: Stream-based transfers up to 100GB (browser dependent)
 - **Backpressure Management**: Automatic flow control for smooth transfers
 - **Progress Tracking**: Real-time speed, ETA, and progress indicators
 - **Cross-Platform**: Works on desktop, tablet, and mobile browsers
-- **Responsive Design**: Cyberpunk-minimalist UI with Framer Motion animations
+- **Responsive Design**: Modern glassmorphic theme with Plus Jakarta Sans & JetBrains Mono typography and Framer Motion animations
 
 ## 📋 Prerequisites
 
@@ -27,8 +28,8 @@ Before you begin, ensure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/bigem/aethershare.git
-cd aethershare
+git clone https://github.com/bigem-hub/AetherShare.git
+cd AetherShare
 
 # Install dependencies
 npm install
@@ -267,7 +268,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - WebRTC API reference
 - [DataChannel](https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel) specification
 - [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) for encryption
-
----
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
