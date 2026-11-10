@@ -747,7 +747,7 @@ export class WebRTCManager {
         : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
     return {
       ciphertext: bufferSlice as ArrayBuffer,
-      iv: arrayBufferToBase64(iv.buffer),
+      iv: arrayBufferToBase64(iv.buffer as ArrayBuffer),
     };
   }
 
@@ -755,7 +755,7 @@ export class WebRTCManager {
     return crypto.getRandomValues(new Uint8Array(12));
   }
 
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+  private arrayBufferToBase64(buffer: ArrayBuffer | ArrayBufferLike): string {
     return arrayBufferToBase64(buffer);
   }
 

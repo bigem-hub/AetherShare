@@ -68,8 +68,8 @@ export async function calculateChecksumFromBuffer(buffer: ArrayBuffer): Promise<
 /**
  * Convert ArrayBuffer to base64 string
  */
-export function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
+export function arrayBufferToBase64(buffer: ArrayBuffer | ArrayBufferLike): string {
+  const bytes = new Uint8Array(buffer as ArrayBuffer);
   let binary = "";
   const chunkSize = 8192;
   for (let i = 0; i < bytes.length; i += chunkSize) {

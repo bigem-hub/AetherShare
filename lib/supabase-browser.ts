@@ -24,12 +24,8 @@ export function getSupabaseBrowserClient(): SupabaseClient<any> {
     return supabaseClient
   }
 
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!rawUrl || !supabaseKey) {
-    throw new Error('Supabase URL or anon key not configured in environment variables')
-  }
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://arldauqfauldqbofmmeo.supabase.co'
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_ViGVfpGPvWARDzE_VC7-pQ_gdghCsbE'
 
   const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '')
 
