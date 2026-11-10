@@ -1,0 +1,16 @@
+{
+  "name": "AetherShare",
+  "short_name": "AetherShare",
+  "description": "Peer-to-peer file transfer using WebRTC",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05060a",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
